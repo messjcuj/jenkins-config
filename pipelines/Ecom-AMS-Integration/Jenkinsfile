@@ -1,0 +1,37 @@
+@Library('jenkins-shared-lib@main') _
+import com.ecom.PipelineHelper
+import com.ecom.PipelineGlobalConfig
+
+def agentLabel = PipelineHelper.getSettings(this)["default_agent_label"]
+this.globalConfig = initConfig()
+
+timestamps {
+    node(agentLabel){
+        stage("Setup ENV") {
+            SetupENV(script: this)
+        }
+        stage("Checkout") {
+            CheckoutSource(script: this)
+        }
+        stage("Build") {
+            GradleBuild(script: this, global_arguments: '-Dorg.gradle.jvmargs="-Xms512m -Xmx1024m"', "jdk_version": 21, "gradle_version": 8)
+        }
+        stage("UT") {
+            GradleBuild(script: this, global_arguments: '-Dorg.gradle.jvmargs="-Xms512m -Xmx1024m" -x test', "jdk_version": 21, "gradle_version": 8)
+        }    
+        stage("Deploy Artifacts") {
+            DeployArtifacts(script: this)
+        }
+    }
+}
+
+def initConfig() {
+    def globalConfig = new PipelineGlobalConfig()
+    globalConfig.targetBranch = "main"
+    globalConfig.repos = [
+        "Jenkins-ecom-ams-project"
+    ]
+    globalConfig.remoteUrl = "https://github.com/messjcuj"
+    globalConfig.repoCredentialId = "jenkins-config"
+    return globalConfig
+}
